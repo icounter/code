@@ -207,6 +207,62 @@ con_tabe_scenarioall<-eventReactive(input$go_BN_cond,{
   con_tabe_function_all(pro_dict_scenario1,pro_dict_scenario2,input$tentative_k[1],input$tentative_k[2]-input$tentative_k[1])
 })
 #####################################################conditional probability matrixA happens B happens probability 
+generate_bayesian_cor_functionall<-function(pro_dict_scenario1,pro_dict_scenario2,k1,k2){
+  pro_dict_scenario1<-as.matrix(pro_dict_scenario1)
+  pro_dict_scenario2<-as.matrix(pro_dict_scenario2)
+  rescale<-rep(0,ncol(pro_dict_scenario1)+ncol(pro_dict_scenario2)-1)
+  if((pro_dict_scenario2[1,1]!=1)&&(pro_dict_scenario1[1,1]!=1)){
+    rescale[1]<-1-k1-k2
+    rescale[2:ncol(pro_dict_scenario1)]<-pro_dict_scenario1[1,2:ncol(pro_dict_scenario1)]/(1-pro_dict_scenario1[1,1])*k1
+    rescale[(ncol(pro_dict_scenario1)+1):length(rescale)]<-pro_dict_scenario2[1,2:ncol(pro_dict_scenario2)]/(1-pro_dict_scenario2[1,1])*k2
+  }
+  bayesian_matrix1<-cbind(pro_dict_scenario1,pro_dict_scenario2[,2:ncol(pro_dict_scenario2)])
+  bayesian_matrix1[1,]=rescale
+  pro_dict3<-as.matrix(bayesian_matrix1)
+  pro_dict3<-pro_dict3[,-1]
+  if(is.null(nrow(pro_dict3))){
+    pro_dict_prob<-pro_dict3[1]
+    pro_dict_matrix<-as.matrix(pro_dict3[2:length(pro_dict3)])
+  }else{
+    pro_dict_prob<-pro_dict3[1,]
+    pro_dict_matrix<-pro_dict3[2:nrow(pro_dict3),]
+  }
+  name<-rownames(pro_dict_matrix)
+  N<-length(name)
+  cor<-diag(N)
+  if(ncol(pro_dict_matrix)==1){
+    cor<-matrix(1,N,N)
+    cor[,N]=0
+    cor[N,]=0
+  }else{
+    for(i in 1:N){
+      for(j in 1:N){
+        if(i==j) {
+          cor[i,j]=1
+        }else{
+          temp_pro<-which(pro_dict_matrix[i,]!=0)
+          if(length(temp_pro)==0){
+            cor[i,j]=0
+          }else{
+            temp<-pro_dict_matrix[,temp_pro]
+            temp_pro_sum<-pro_dict_prob[temp_pro]
+            temp_pro2<-which(temp[j,]!=0)
+            if(length(temp_pro2)==0){
+              cor[i,j]=0
+            }else{
+              cor[i,j]=(sum(temp_pro_sum[temp_pro2]))/sum(temp_pro_sum)
+            }
+          } 
+        }
+      }
+    }}
+  cor<-data.frame(cor)
+  colnames(cor)<-name
+  cor<-as.data.frame(lapply(cor, format_num9))
+  cor<-cbind(name,cor)
+  colnames(cor)[1]<-c("conditional probability matrix")
+  return(cor)
+}
 generate_bayesian_cor_function<-function(pro_dict){
   pro_dict3<-as.matrix(pro_dict)
   pro_dict3<-pro_dict3[,-1]
@@ -259,6 +315,9 @@ generate_bayesian_cor_scenario1<-eventReactive(input$go_BN_cond,{
 generate_bayesian_cor_scenario2<-eventReactive(input$go_BN_cond,{
   generate_bayesian_cor_function(pro_dict_scenario2)
 })
+generate_bayesian_cor_scenarioall<-eventReactive(input$go_BN_cond,{
+  generate_bayesian_cor_functionall(pro_dict_scenario1,pro_dict_scenario2,input$tentative_k[1],input$tentative_k[2]-input$tentative_k[1])
+})
 #####################################################correlation matrix based on simulation
 generate_extreme_cor_function_all<-function(pro_dict_scenario1,pro_dict_scenario2,extreme_stress_loss_scenario1,extreme_stress_loss_scenario2,asset_ret1,asset_corr1,asset_vol1,k1,k2){
   pro_dict_scenario1<-as.matrix(pro_dict_scenario1)
@@ -302,15 +361,31 @@ generate_extreme_cor_function_all<-function(pro_dict_scenario1,pro_dict_scenario
   rand<-randl
   order<-as.integer(M*pro_dict_prob/sum(pro_dict_prob))
   for(i in 1:length(order)){
-    if(i==1&&order[i]!=0){
-      rand[1:order[i],]<-t(((1-pro_dict_matrix[,i])*t(rand[1:order[i],])))
-      rand[1:order[i],]<-t(apply(rand[1:order[i],],1,function(x) x+as.vector(ifelse((pro_dict_matrix[pro_dict_matrix[,i]!=0,i])[1]==1,pro_dict_matrix[,i]*extreme_stress_loss_scenario1,pro_dict_matrix[,i]*extreme_stress_loss_scenario2/2.0))))
-    }else if(order[i]!=0){
-      rand[(sum(order[1:(i-1)])+1):(sum(order[1:i])),]<-t(((1-pro_dict_matrix[,i])*t(rand[(sum(order[1:(i-1)])+1):(sum(order[1:i])),])))
-      if((sum(order[1:(i-1)])+1)==(sum(order[1:i]))){
-        rand[(sum(order[1:(i-1)])+1):(sum(order[1:i])),]<-rand[(sum(order[1:(i-1)])+1):(sum(order[1:i])),]+as.vector(ifelse((pro_dict_matrix[pro_dict_matrix[,i]!=0,i])[1]==1,pro_dict_matrix[,i]*extreme_stress_loss_scenario1,pro_dict_matrix[,i]*extreme_stress_loss_scenario2/2.0))
+    if(i==1){
+      if(order[i]!=0){
+      scenario_numer=(pro_dict_matrix[pro_dict_matrix[,i]!=0,i])[1]
+      rand[1:order[i],]<-t(((1-(pro_dict_matrix[,i]!=0))*t(rand[1:order[i],])))
+      if(scenario_numer==2){
+        rand[1:order[i],]<-t(apply(rand[1:order[i],],1,function(x) x+as.vector(pro_dict_matrix[,i]*extreme_stress_loss_scenario2/(pro_dict_matrix[pro_dict_matrix[,i]!=0,i])[1])))
       }else{
-        rand[(sum(order[1:(i-1)])+1):(sum(order[1:i])),]<-t(apply(rand[(sum(order[1:(i-1)])+1):(sum(order[1:i])),],1,function(x) x+as.vector(ifelse((pro_dict_matrix[pro_dict_matrix[,i]!=0,i])[1]==1,pro_dict_matrix[,i]*extreme_stress_loss_scenario1,pro_dict_matrix[,i]*extreme_stress_loss_scenario2/2.0))))
+        rand[1:order[i],]<-t(apply(rand[1:order[i],],1,function(x) x+as.vector(pro_dict_matrix[,i]*extreme_stress_loss_scenario1/(pro_dict_matrix[pro_dict_matrix[,i]!=0,i])[1]))) 
+      }
+      }
+    }else if(order[i]!=0){
+      scenario_numer=(pro_dict_matrix[pro_dict_matrix[,i]!=0,i])[1]
+      rand[(sum(order[1:(i-1)])+1):(sum(order[1:i])),]<-t(((1-(pro_dict_matrix[,i]!=0))*t(rand[(sum(order[1:(i-1)])+1):(sum(order[1:i])),])))
+      if((sum(order[1:(i-1)])+1)==(sum(order[1:i]))){
+        if(scenario_numer==2){
+          rand[(sum(order[1:(i-1)])+1):(sum(order[1:i])),]<-rand[(sum(order[1:(i-1)])+1):(sum(order[1:i])),]+as.vector(pro_dict_matrix[,i]*extreme_stress_loss_scenario2/(pro_dict_matrix[pro_dict_matrix[,i]!=0,i])[1])
+        }else{
+          rand[(sum(order[1:(i-1)])+1):(sum(order[1:i])),]<-rand[(sum(order[1:(i-1)])+1):(sum(order[1:i])),]+as.vector(pro_dict_matrix[,i]*extreme_stress_loss_scenario1/(pro_dict_matrix[pro_dict_matrix[,i]!=0,i])[1])
+        }
+      }else{
+        if(scenario_numer==2){
+          rand[(sum(order[1:(i-1)])+1):(sum(order[1:i])),]<-t(apply(rand[(sum(order[1:(i-1)])+1):(sum(order[1:i])),],1,function(x) x+as.vector(pro_dict_matrix[,i]*extreme_stress_loss_scenario2/(pro_dict_matrix[pro_dict_matrix[,i]!=0,i])[1])))
+        }else{
+          rand[(sum(order[1:(i-1)])+1):(sum(order[1:i])),]<-t(apply(rand[(sum(order[1:(i-1)])+1):(sum(order[1:i])),],1,function(x) x+as.vector(pro_dict_matrix[,i]*extreme_stress_loss_scenario1/(pro_dict_matrix[pro_dict_matrix[,i]!=0,i])[1])))
+        }
       }
     }
   }
@@ -328,10 +403,6 @@ generate_extreme_cor_function_all<-function(pro_dict_scenario1,pro_dict_scenario
   cor<-cbind(name,cor)
   colnames(cor)[1]<-c("correlation matrix")
   return(cor)  
-  
-
-  
-  
 }
 generate_extreme_cor_function<-function(pro_dict,extreme_stress_loss,asset_ret1,asset_corr1,asset_vol1){
   pro_dict3<-as.matrix(pro_dict)
@@ -404,10 +475,103 @@ generate_extreme_cor_scenarioall<-eventReactive(input$go_BN_cond,{
   generate_extreme_cor_function_all(pro_dict_scenario1,pro_dict_scenario2,input$extreme_stress_loss_scenario1,input$extreme_stress_loss_scenario2,input$asset_ret1,input$asset_corr1,input$asset_vol1,input$tentative_k[1],input$tentative_k[2]-input$tentative_k[1])
 })
 #####################################################rescaled correlation matrix based on simulation       
+generate_bayesian_cor2_functionall<-function(pro_dict_scenario1,pro_dict_scenario2,k1,k2,extreme_stress_loss_scenario1,extreme_stress_loss_scenario2,asset_ret1,asset_corr1,asset_vol1){
+  pro_dict_scenario1<-as.matrix(pro_dict_scenario1)
+  pro_dict_scenario2<-as.matrix(pro_dict_scenario2)
+  rescale<-rep(0,ncol(pro_dict_scenario1)+ncol(pro_dict_scenario2)-1)
+  if((pro_dict_scenario2[1,1]!=1)&&(pro_dict_scenario1[1,1]!=1)){
+    rescale[1]<-1-k1-k2
+    rescale[2:ncol(pro_dict_scenario1)]<-pro_dict_scenario1[1,2:ncol(pro_dict_scenario1)]/(1-pro_dict_scenario1[1,1])*k1
+    rescale[(ncol(pro_dict_scenario1)+1):length(rescale)]<-pro_dict_scenario2[1,2:ncol(pro_dict_scenario2)]/(1-pro_dict_scenario2[1,1])*k2
+  }
+  bayesian_matrix1<-cbind(pro_dict_scenario1,pro_dict_scenario2[,2:ncol(pro_dict_scenario2)])
+  bayesian_matrix1[1,]=rescale
+  pro_dict3<-(bayesian_matrix1)
+  pro_dict_prob<-pro_dict3[1,]
+  pro_dict_matrix<-pro_dict3[2:nrow(pro_dict3),]
+  name<-rownames(pro_dict_matrix)
+  N<-length(name)
+  extreme_stress_loss_scenario1<-as.double(strsplit(extreme_stress_loss_scenario1,",")[[1]])
+  extreme_stress_loss_scenario2<-as.double(strsplit(extreme_stress_loss_scenario2,",")[[1]])
+  M<-50000
+  name<-rownames(pro_dict_matrix)
+  N<-length(name)
+  if(exists("randl")&&ncol(randl)==N){
+    rand<-randl
+  }else{
+    name<-rownames(pro_dict_matrix)
+    N<-length(name)
+    asset_ret<-as.double(strsplit(asset_ret1,",")[[1]])
+    asset_corr<-as.double(strsplit(asset_corr1,",")[[1]])
+    asset_vol1<-as.double(strsplit(asset_vol1,",")[[1]])
+    asset_var<-(asset_vol1)^2
+    asset_cor<-matrix(1,N,N)
+    kk=1
+    for(i in 1:(N-1)){
+      for(j in (i+1):N){
+        asset_cor[i,j]=asset_corr[kk]
+        kk=kk+1
+        asset_cor[j,i]=asset_cor[i,j]
+      }
+    }
+    asset_cov<-r2cov(sd =sqrt(asset_var),R = asset_cor)
+    margins_r<-rep("norm",N)
+    paramMargins_r <- list()
+    # extreme_stress_loss<-as.double(strsplit(extreme_stress_loss,",")[[1]])
+    for(i in 1:N){
+      paramMargins_r[[length(paramMargins_r)+1]] <- list(mean =asset_ret[i], sd =sqrt(asset_var[i]))
+    }
+    rand<-generate_N_rand(N,asset_corr,margins_r,paramMargins_r,M)
+  }
+  order<-as.integer(M*pro_dict_prob/sum(pro_dict_prob))
+  pro_dict_matrix<-pro_dict_matrix
+  for(i in 1:length(order)){
+    if(i==1){
+      if(order[i]!=0){
+        scenario_numer=(pro_dict_matrix[pro_dict_matrix[,i]!=0,i])[1]
+        rand[1:order[i],]<-t(((1-(pro_dict_matrix[,i]!=0))*t(rand[1:order[i],])))
+        if(scenario_numer==2){
+          rand[1:order[i],]<-t(apply(rand[1:order[i],],1,function(x) x+as.vector(pro_dict_matrix[,i]*extreme_stress_loss_scenario2/(pro_dict_matrix[pro_dict_matrix[,i]!=0,i])[1])))
+        }else{
+          rand[1:order[i],]<-t(apply(rand[1:order[i],],1,function(x) x+as.vector(pro_dict_matrix[,i]*extreme_stress_loss_scenario1/(pro_dict_matrix[pro_dict_matrix[,i]!=0,i])[1]))) 
+        }
+      }
+    }else if(order[i]!=0){
+      scenario_numer=(pro_dict_matrix[pro_dict_matrix[,i]!=0,i])[1]
+      rand[(sum(order[1:(i-1)])+1):(sum(order[1:i])),]<-t(((1-(pro_dict_matrix[,i]!=0))*t(rand[(sum(order[1:(i-1)])+1):(sum(order[1:i])),])))
+      if((sum(order[1:(i-1)])+1)==(sum(order[1:i]))){
+        if(scenario_numer==2){
+          rand[(sum(order[1:(i-1)])+1):(sum(order[1:i])),]<-rand[(sum(order[1:(i-1)])+1):(sum(order[1:i])),]+as.vector(pro_dict_matrix[,i]*extreme_stress_loss_scenario2/(pro_dict_matrix[pro_dict_matrix[,i]!=0,i])[1])
+        }else{
+          rand[(sum(order[1:(i-1)])+1):(sum(order[1:i])),]<-rand[(sum(order[1:(i-1)])+1):(sum(order[1:i])),]+as.vector(pro_dict_matrix[,i]*extreme_stress_loss_scenario1/(pro_dict_matrix[pro_dict_matrix[,i]!=0,i])[1])
+        }
+      }else{
+        if(scenario_numer==2){
+          rand[(sum(order[1:(i-1)])+1):(sum(order[1:i])),]<-t(apply(rand[(sum(order[1:(i-1)])+1):(sum(order[1:i])),],1,function(x) x+as.vector(pro_dict_matrix[,i]*extreme_stress_loss_scenario2/(pro_dict_matrix[pro_dict_matrix[,i]!=0,i])[1])))
+        }else{
+          rand[(sum(order[1:(i-1)])+1):(sum(order[1:i])),]<-t(apply(rand[(sum(order[1:(i-1)])+1):(sum(order[1:i])),],1,function(x) x+as.vector(pro_dict_matrix[,i]*extreme_stress_loss_scenario1/(pro_dict_matrix[pro_dict_matrix[,i]!=0,i])[1])))
+        }
+      }
+    }
+  }
+  pro_dict_matrix<-rand
+  cor<-cor(pro_dict_matrix)
+  for(i in 1:ncol(cor)){
+    for(j in 1:nrow(cor)){
+      if(is.na(cor[i,j]))  cor[i,j]=0
+    }
+  }
+  cor<-data.frame(cor)
+  colnames(cor)<-name
+  cor<-as.data.frame(lapply(cor, format_num9))
+  cor<-cbind(name,cor)
+  colnames(cor)[1]<-c("Rescaled correlation matrix")
+  return(cor)
+}
 generate_bayesian_cor2_function<-function(bayesian_matrix1,tentative_k,extreme_stress_loss,asset_ret1,asset_corr1,asset_vol1){
   pro_dict3<-as.matrix(t(bayesian_matrix1))
   divide<-(pro_dict3[pro_dict3[,2]!=0,2])[1]
-  pro_dict3<-apply(pro_dict3,2,function(x) x/divide)
+  # pro_dict3<-apply(pro_dict3,2,function(x) x/divide)
   rescale<-rep(0,nrow(pro_dict3))
   if(pro_dict3[1,1]!=1){
     rescale[1]<-1-tentative_k
@@ -417,6 +581,7 @@ generate_bayesian_cor2_function<-function(bayesian_matrix1,tentative_k,extreme_s
   pro_dict3<-t(pro_dict3)
   pro_dict_prob<-pro_dict3[1,]
   pro_dict_matrix<-pro_dict3[2:nrow(pro_dict3),]
+  pro_dict_matrix<-apply(pro_dict_matrix,2,function(x) x/divide)
   name<-rownames(pro_dict_matrix)
   N<-length(name)
   extreme_stress_loss<-as.double(strsplit(extreme_stress_loss,",")[[1]])
@@ -485,6 +650,9 @@ generate_bayesian_cor2_scenario1<-eventReactive(input$go_BN_cond,{
 generate_bayesian_cor2_scenario2<-eventReactive(input$go_BN_cond,{
   generate_bayesian_cor2_function(pro_dict_scenario2,input$tentative_k[2]-input$tentative_k[1],input$extreme_stress_loss_scenario2,input$asset_ret1,input$asset_corr1,input$asset_vol1) 
 })
+generate_bayesian_cor2_scenarioall<-eventReactive(input$go_BN_cond,{
+  generate_bayesian_cor2_functionall(pro_dict_scenario1,pro_dict_scenario2,input$tentative_k[1],input$tentative_k[2]-input$tentative_k[1],input$extreme_stress_loss_scenario1,input$extreme_stress_loss_scenario2,input$asset_ret1,input$asset_corr1,input$asset_vol1) 
+})
 ###############################################normal correlation matrix
 generate_normal_cor_function<-function(assets_num1,asset_corr1,asset_name1){
   N<-as.double(assets_num1)
@@ -520,6 +688,50 @@ generate_normal_cor_scenarioall<-eventReactive(input$go_BN_cond,{
   generate_normal_cor_function(input$assets_num1,input$asset_corr1,input$asset_name1) 
 })
 ############################################downside correlation matrix for extreme part
+generate_bayesian_cor_downside_functionall<-function(pro_dict_scenario1,pro_dict_scenario2,extreme_stress_loss_scenario1,extreme_stress_loss_scenario2,k1,k2)
+{ 
+  pro_dict_scenario1<-as.matrix(pro_dict_scenario1)
+  pro_dict_scenario2<-as.matrix(pro_dict_scenario2)
+  rescale<-rep(0,ncol(pro_dict_scenario1)+ncol(pro_dict_scenario2)-1)
+  if((pro_dict_scenario2[1,1]!=1)&&(pro_dict_scenario1[1,1]!=1)){
+    rescale[1]<-1-k1-k2
+    rescale[2:ncol(pro_dict_scenario1)]<-pro_dict_scenario1[1,2:ncol(pro_dict_scenario1)]/(1-pro_dict_scenario1[1,1])*k1
+    rescale[(ncol(pro_dict_scenario1)+1):length(rescale)]<-pro_dict_scenario2[1,2:ncol(pro_dict_scenario2)]/(1-pro_dict_scenario2[1,1])*k2
+  }
+  bayesian_matrix1<-cbind(pro_dict_scenario1,pro_dict_scenario2[,2:ncol(pro_dict_scenario2)])
+  bayesian_matrix1[1,]=rescale
+pro_dict3<-as.matrix((bayesian_matrix1))
+# pro_dict3<-as.matrix(pro_dict)
+pro_dict3<-pro_dict3[,-1]
+pro_dict_prob<-pro_dict3[1,]
+pro_dict_prob<-pro_dict_prob/sum(pro_dict_prob)
+pro_dict_matrix<-pro_dict3[2:nrow(pro_dict3),]
+extreme_stress_loss_scenario1<-as.double(strsplit(extreme_stress_loss_scenario1,",")[[1]])
+extreme_stress_loss_scenario2<-as.double(strsplit(extreme_stress_loss_scenario2,",")[[1]])
+pro_dict_matrix_scenario1<-pro_dict_matrix[,1:(ncol(pro_dict_scenario1)-1)]*extreme_stress_loss_scenario1
+pro_dict_matrix_scenario2<-pro_dict_matrix[,(ncol(pro_dict_scenario1)):ncol(pro_dict_matrix)]*extreme_stress_loss_scenario2/(pro_dict_matrix[pro_dict_matrix[,(ncol(pro_dict_scenario1))]!=0,(ncol(pro_dict_scenario1))])
+pro_dict_matrix<-cbind(pro_dict_matrix_scenario1,pro_dict_matrix_scenario2)
+name<-rownames(pro_dict_matrix)
+N<-length(name)
+cor<-diag(N)
+for(i in 1:(N-1)){
+  for(j in (i+1):N){
+    D1<-sqrt(pro_dict_prob%*%(pro_dict_matrix[i,]*pro_dict_matrix[i,]))
+    D2<-sqrt(pro_dict_prob%*%(pro_dict_matrix[j,]*pro_dict_matrix[j,]))
+    cor[i,j]<-(pro_dict_prob%*%(pro_dict_matrix[i,]*pro_dict_matrix[j,]))/(D1*D2)
+    cor[i,j]=ifelse(is.na(cor[i,j]),0,cor[i,j])
+    cor[j,i]=cor[i,j]
+  }
+  
+}
+cor<-data.frame(cor)
+colnames(cor)<-name
+cor<-as.data.frame(lapply(cor, format_num9))
+cor<-cbind(name,cor)
+colnames(cor)[1]<-c("downside correlation matrix for extreme part")
+return(cor)
+
+}
 generate_bayesian_cor_downside_function<-function(bayesian_matrix1,extreme_stress_loss){
   pro_dict3<-as.matrix((bayesian_matrix1))
   # pro_dict3<-as.matrix(pro_dict)
@@ -554,6 +766,9 @@ generate_bayesian_cor_downside_scenario1<-eventReactive(input$go_BN_cond,{
     })
 generate_bayesian_cor_downside_scenario2<-eventReactive(input$go_BN_cond,{
   generate_bayesian_cor_downside_function(pro_dict_scenario2,input$extreme_stress_loss_scenario2)
+})
+generate_bayesian_cor_downside_scenarioall<-eventReactive(input$go_BN_cond,{
+  generate_bayesian_cor_downside_functionall(pro_dict_scenario1,pro_dict_scenario2,input$extreme_stress_loss_scenario1,input$extreme_stress_loss_scenario2,input$tentative_k[1],input$tentative_k[2]-input$tentative_k[1])
 })
 #################################format functions
     format_num <- function(col) {
@@ -880,12 +1095,12 @@ output$tentative_transcost<-renderTable({
       recalculate<<-0
       if(input$uti!="combo"){
         call_scenario_cost_BN(input$uti,input$assets_num1,input$lambda1,input$asset_ret1,input$asset_vol1,
-                            input$asset_corr1,input$sample_number1,input$extreme_stress_loss,pro_dict,
-                            input$principal1,trans_cost,finan_cost,haircut,real_finance_weight,input$w_now,input$lower_bound,input$upper_bound,input$subjective_k,
+                            input$asset_corr1,input$sample_number1,input$extreme_stress_loss_scenario1,input$extreme_stress_loss_scenario2,pro_dict_scenario1,pro_dict_scenario2,
+                            input$principal1,trans_cost,finan_cost,haircut,real_finance_weight,input$w_now,input$lower_bound,input$upper_bound,input$subjective_k[1],input$subjective_k[2]-input$subjective_k[1],
                             input$inequality_constraints,input$equality_constraints,input$maxeval_global,input$maxeval_local,input$asset_name1,input$moment,smallprob)}else{
         call_scenario_cost_BN2(input$assets_num1,input$x_extreme,input$x_downturning,0,input$x_upturning,input$prob2,input$asset_ret1,input$asset_vol1,
-                                                    input$asset_corr1,input$sample_number1,input$extreme_stress_loss,pro_dict,
-                                                    input$principal1,trans_cost,finan_cost,haircut,real_finance_weight,input$w_now,input$lower_bound,input$upper_bound,input$subjective_k,
+                                                    input$asset_corr1,input$sample_number1,input$extreme_stress_loss_scenario1,input$extreme_stress_loss_scenario2,pro_dict_scenario1,pro_dict_scenario2,
+                                                    input$principal1,trans_cost,finan_cost,haircut,real_finance_weight,input$w_now,input$lower_bound,input$upper_bound,input$subjective_k[1],input$subjective_k[2]-input$subjective_k[1],
                                                     input$inequality_constraints,input$equality_constraints,input$maxeval_global,input$maxeval_local,input$asset_name1,input$moment,smallprob)
       }
       })
@@ -898,7 +1113,7 @@ output$tentative_transcost<-renderTable({
       }else if(input$uti=='log'){
         u<--log_find_w(weights3$weights[-length(weights3$weights)])
       }else{
-        u<--combo_find_w(weights3$weights[-length(weights3$weights)],w_now,x_downturning1,AA1,ll1,k_21,k_11,x_11,trans_cost,finan_cost,haircut,real_finance_weight,principal1,rand2,rand_sub,rand2_moment,loss1,pro_dict,k,mu)
+        u<--combo_find_w(weights3$weights[-length(weights3$weights)],w_now,x_downturning1,AA1,ll1,k_21,k_11,x_11,trans_cost,finan_cost,haircut,real_finance_weight,principal1,rand2,rand_sub,rand2_moment,loss1,pro_dict_scenario1,pro_dict_scenario2,k,mu)
       }
       weights3$asset_name<-as.character(weights3$asset_name)
       ggplot(data=weights3, aes(x=asset_name, y=weights, fill=method)) +
@@ -1041,14 +1256,14 @@ calculate_stat<-function(weights3){
     get_weights_matrix<-eventReactive(input$go9,{
       if(length(which(input$uti2=='combo'))==0){
                 weights_matrix<<-call_scenario_cost_BN_matrix(input$uti2,input$assets_num1,input$lambdas,input$asset_ret1,input$asset_vol1,
-                              input$asset_corr1,input$sample_number2,input$extreme_stress_loss,pro_dict,
+                              input$asset_corr1,input$sample_number2,input$extreme_stress_loss_scenario1,input$extreme_stress_loss_scenario2,pro_dict_scenario1,pro_dict_scenario1,pro_dict_scenario2,
                               input$principal1,trans_cost,finan_cost,haircut,real_finance_weight,input$w_now,input$lower_bound,input$upper_bound,input$ks,
                               input$inequality_constraints,input$equality_constraints,input$maxeval_global,input$maxeval_local,input$asset_name1,input$moment2,smallprob2) 
                 weights_matrix<<-data.frame(weights_matrix)
                   return(weights_matrix)
       }else if(length(which(input$uti2!='combo'))==0){
         weights_matrix5<<-call_scenario_cost_BN_matrix2(input$assets_num1,input$x_extreme2,input$x_downturning2,0,input$x_upturning2,input$prob22,input$asset_ret1,input$asset_vol1,
-                                                        input$asset_corr1,input$sample_number1,input$extreme_stress_loss,pro_dict,
+                                                        input$asset_corr1,input$sample_number1,input$extreme_stress_loss_scenario1,input$extreme_stress_loss_scenario2,pro_dict_scenario1,pro_dict_scenario2,
                                                         input$principal1,trans_cost,finan_cost,haircut,real_finance_weight,input$w_now,input$lower_bound,input$upper_bound,input$ks,
                                                         input$inequality_constraints,input$equality_constraints,input$maxeval_global,input$maxeval_local,input$asset_name1,input$moment2,smallprob2)
         weights_matrix5<<-data.frame(weights_matrix5)
@@ -1056,11 +1271,11 @@ calculate_stat<-function(weights3){
       }else{
         uti2<-input$uti2[-which(input$uti2=='combo')]
         weights_matrix<<-call_scenario_cost_BN_matrix(uti2,input$assets_num1,input$lambdas,input$asset_ret1,input$asset_vol1,
-                                                      input$asset_corr1,input$sample_number2,input$extreme_stress_loss,pro_dict,
+                                                      input$asset_corr1,input$sample_number2,input$extreme_stress_loss_scenario1,input$extreme_stress_loss_scenario2,pro_dict_scenario1,pro_dict_scenario2,
                                                       input$principal1,trans_cost,finan_cost,haircut,real_finance_weight,input$w_now,input$lower_bound,input$upper_bound,input$ks,
                                                       input$inequality_constraints,input$equality_constraints,input$maxeval_global,input$maxeval_local,input$asset_name1,input$moment2,smallprob2) 
         weights_matrix5<<-call_scenario_cost_BN_matrix2(input$assets_num1,input$x_extreme2,input$x_downturning2,0,input$x_upturning2,input$prob22,input$asset_ret1,input$asset_vol1,
-                                                        input$asset_corr1,input$sample_number1,input$extreme_stress_loss,pro_dict,
+                                                        input$asset_corr1,input$sample_number1,input$extreme_stress_loss_scenario1,input$extreme_stress_loss_scenario2,pro_dict_scenario1,pro_dict_scenario2,
                                                         input$principal1,trans_cost,finan_cost,haircut,real_finance_weight,input$w_now,input$lower_bound,input$upper_bound,input$ks,
                                                         input$inequality_constraints,input$equality_constraints,input$maxeval_global,input$maxeval_local,input$asset_name1,input$moment2,smallprob2)
       
@@ -1134,13 +1349,13 @@ calculate_stat<-function(weights3){
    k=input$subjective_k
    ##################calculate utility value for these two assts' weights
    if(input$uti=='expo'){
-     u_uti<--expo_find_w(weights3$weights[-length(weights3$weights)],w_now,input$lambda1,trans_cost,finan_cost,haircut,real_finance_weight,principal1,rand2,rand_sub,rand2_moment,loss1,pro_dict,input$subjective_k,mu)
+     u_uti<--expo_find_w(weights3$weights[-length(weights3$weights)],w_now,input$lambda1,trans_cost,finan_cost,haircut,real_finance_weight,principal1,rand2,rand_sub,rand2_moment,loss1,pro_dict_scenario1,pro_dict_scenario2,input$subjective_k[1],input$subjective_k[2]-input$subjective_k[1],mu)
    }else if(input$uti=='power'){
-     u_uti<--power_find_w(weights3$weights[-length(weights3$weights)],w_now,input$lambda1,trans_cost,finan_cost,haircut,real_finance_weight,principal1,rand2,rand_sub,rand2_moment,loss1,pro_dict,input$subjective_k,mu)
+     u_uti<--power_find_w(weights3$weights[-length(weights3$weights)],w_now,input$lambda1,trans_cost,finan_cost,haircut,real_finance_weight,principal1,rand2,rand_sub,rand2_moment,loss1,pro_dict_scenario1,pro_dict_scenario2,input$subjective_k[1],input$subjective_k[2]-input$subjective_k[1],mu)
    }else if(input$uti=='log'){
-     u_uti<--log_find_w(weights3$weights[-length(weights3$weights)],w_now,input$lambda1,trans_cost,finan_cost,haircut,real_finance_weight,principal1,rand2,rand_sub,rand2_moment,loss1,pro_dict,input$subjective_k,mu)
+     u_uti<--log_find_w(weights3$weights[-length(weights3$weights)],w_now,input$lambda1,trans_cost,finan_cost,haircut,real_finance_weight,principal1,rand2,rand_sub,rand2_moment,loss1,pro_dict_scenario1,pro_dict_scenario2,input$subjective_k[1],input$subjective_k[2]-input$subjective_k[1],mu)
    }else{
-     u_uti<--combo_find_w(weights3$weights[-length(weights3$weights)],w_now,x_downturning1,AA1,ll1,k_21,k_11,x_11,trans_cost,finan_cost,haircut,real_finance_weight,principal1,rand2,rand_sub,rand2_moment,loss1,pro_dict,input$subjective_k,mu)
+     u_uti<--combo_find_w(weights3$weights[-length(weights3$weights)],w_now,x_downturning1,AA1,ll1,k_21,k_11,x_11,trans_cost,finan_cost,haircut,real_finance_weight,principal1,rand2,rand_sub,rand2_moment,loss1,pro_dict_scenario1,pro_dict_scenario2,input$subjective_k[1],input$subjective_k[2]-input$subjective_k[1],mu)
    }
    if(input$uti=='expo'){
      u_uti2<-(1-k)*mean(na.omit(get_expo_ut(rand2 %*% w_user_input,input$lambda1,w_now,w_user_input,tcost2)))+k/(1-pro_dict$p0[1])*get_extreme_expo_uti(pro_dict,loss1,input$lambda1,w_now,w_user_input,tcost2,mu,rand_sub)

@@ -921,7 +921,7 @@ stringsplit<-function(string){
   }
   return(b)
 }
-generate_moment_matching<-function(pro_dict1,mu1,k,asset_cov,N_sample){
+generate_moment_matching<-function(pro_dict1,mu1,k1,k2,asset_cov,N_sample){
   p0<-pro_dict1$p0[1]
   pro_dict_matrix<-as.matrix(pro_dict1[2:nrow(pro_dict1),])
   pro_dict1<-as.matrix(pro_dict1)
@@ -1107,8 +1107,22 @@ initial_point<-function(method,moment,start,lower_bound,upper_bound,w_now,lambda
           }}}
   return(initial_point)
 }
-scenario_cost_BN<-function(method,assets_num,lambda,asset_ret,asset_var,asset_corr,sample_number,extreme_stress_loss,pro_dict,principal1,
-                           trans_cost,finan_cost,haircut,real_finance_weight,w_now,lower_bound,upper_bound,subjective_k,
+combine_scenarios<-function(pro_dict_scenario1,pro_dict_scenario2,subjective_k1,subjective_k2){
+  pro_dict_scenario1<-as.matrix(pro_dict_scenario1)
+  pro_dict_scenario2<-as.matrix(pro_dict_scenario2)
+  rescale<-rep(0,ncol(pro_dict_scenario1)+ncol(pro_dict_scenario2)-1)
+  if((pro_dict_scenario2[1,1]!=1)&&(pro_dict_scenario1[1,1]!=1)){
+    rescale[1]<-1-subjective_k1-subjective_k2
+    rescale[2:ncol(pro_dict_scenario1)]<-pro_dict_scenario1[1,2:ncol(pro_dict_scenario1)]/(1-pro_dict_scenario1[1,1])*subjective_k1
+    rescale[(ncol(pro_dict_scenario1)+1):length(rescale)]<-pro_dict_scenario2[1,2:ncol(pro_dict_scenario2)]/(1-pro_dict_scenario2[1,1])*subjective_k2
+  }
+  bayesian_matrix1<-cbind(pro_dict_scenario1,pro_dict_scenario2[,2:ncol(pro_dict_scenario2)])
+  bayesian_matrix1[1,]=rescale
+  pro_dict3<-as.matrix(bayesian_matrix1)
+  return(pro_dict3)
+}
+scenario_cost_BN<-function(method,assets_num,lambda,asset_ret,asset_var,asset_corr,sample_number,extreme_stress_loss_scenario1,extreme_stress_loss_scenario2,pro_dict_scenario1,pro_dict_scenario2,principal1,
+                           trans_cost,finan_cost,haircut,real_finance_weight,w_now,lower_bound,upper_bound,subjective_k1,subjective_k2,
                            inequality_constraints,equality_constraints,maxeval_global,maxeval_local,asset_name1=NULL,moment,smallprob){
   ##trans_cost matrix like
   N=assets_num
@@ -1139,10 +1153,10 @@ scenario_cost_BN<-function(method,assets_num,lambda,asset_ret,asset_var,asset_co
   paramMargins_r<<-paramMargins_r
   asset_corr<<-asset_corr
   N_sample<-sample_number
-  k<<-subjective_k
   rand2<<-generate_N_rand(N,asset_corr,margins_r,paramMargins_r,N_sample) 
   ####below is a way to reduce computation time,when the total scenario number is above 2000,we only pick out the scenarios happen with more than 0.01% probability
 # if(ncol(pro_dict)>2000){
+  pro_dict<<-combine_scenarios(pro_dict_scenario1,pro_dict_scenario2,subjective_k1,subjective_k2)
   pro_dict1<<-pro_dict[,which(pro_dict[1,]>smallprob)]
   rand_sub<<-generate_N_rand(N,asset_corr,margins_r,paramMargins_r,sub_sample) 
 #   }else{
@@ -1150,7 +1164,8 @@ scenario_cost_BN<-function(method,assets_num,lambda,asset_ret,asset_var,asset_co
 #   }
   # pro_dict1<<-pro_dict 
   #####################################global variable initialization
-  loss1<<-extreme_stress_loss
+  loss_scenario1<<-extreme_stress_loss_scenario1
+  loss_scenario2<<-extreme_stress_loss_scenario2
   trans_cost<<-trans_cost
   finan_cost<<-finan_cost
   haircut<<-haircut
@@ -1170,14 +1185,14 @@ scenario_cost_BN<-function(method,assets_num,lambda,asset_ret,asset_var,asset_co
   principal11<<-principal1
   rand21<<-rand2
   rand_sub1<<-rand_sub
-  loss11<<-loss1
+  loss_scenario11<<-loss_scenario1
+  loss_scenario21<<-loss_scenario2
   pro_dictt<<-pro_dict1
-  k1<<-k
   mu1<<-mu
   # maxeval_global<<-maxeval_global
   signal<-rep(0,2)
   # rand_sub1<<-rand_sub
-  rand2_moment<<-generate_moment_matching(pro_dict1,mu1,k,asset_cov,N_sample)
+  rand2_moment<<-generate_moment_matching(pro_dict1,mu1,subjective_k1,subjective_k2,asset_cov,N_sample)
   rand21_moment<<-rand2_moment
   ###############################calcualte equality and inequality jacobian matrix
   if(is.null(eval_g0)){
@@ -1257,8 +1272,8 @@ scenario_cost_BN<-function(method,assets_num,lambda,asset_ret,asset_var,asset_co
 }
 ##########################a function to pre process data for scenario_cost_BN
 call_scenario_cost_BN<-function(uti,assets_num1,lambda1,asset_ret1,asset_vol1,
-                                asset_corr1,sample_number1,extreme_stress_loss,pro_dict,
-                                principal1,trans_cost,finan_cost,haircut,real_finance_weight,w_now,lower_bound,upper_bound,subjective_k,
+                                asset_corr1,sample_number1,extreme_stress_loss_scenario1,extreme_stress_loss_scenario2,pro_dict_scenario1,pro_dict_scenario2,
+                                principal1,trans_cost,finan_cost,haircut,real_finance_weight,w_now,lower_bound,upper_bound,subjective_k1,subjective_k2,
                                 inequality_constraints,equality_constraints,maxeval_global,maxeval_local,asset_name1,moment,smallprob){
   uti<-uti
   assets_num1<-as.double(assets_num1)
@@ -1268,12 +1283,14 @@ call_scenario_cost_BN<-function(uti,assets_num1,lambda1,asset_ret1,asset_vol1,
   asset_var1<-(asset_vol1)^2
   asset_corr1<-as.double(strsplit(asset_corr1,",")[[1]])
   sample_number1<-as.double(sample_number1)
-  extreme_stress_loss<-as.double(strsplit(extreme_stress_loss,",")[[1]])
+  extreme_stress_loss_scenario1<-as.double(strsplit(extreme_stress_loss_scenario1,",")[[1]])
+  extreme_stress_loss_scenario2<-as.double(strsplit(extreme_stress_loss_scenario2,",")[[1]])
   principal1<<-as.double(principal1)
   w_now<-as.double(strsplit(w_now,",")[[1]])
   lower_bound<-as.double(strsplit(lower_bound,",")[[1]])
   upper_bound<-as.double(strsplit(upper_bound,",")[[1]])
-  k<-as.double(subjective_k)
+  subjective_k1<-as.double(subjective_k1)
+  subjective_k2<-as.double(subjective_k2)
   if(length(inequality_constraints)==0){
     inequality_constraints=NULL
   }else{
@@ -1284,8 +1301,8 @@ call_scenario_cost_BN<-function(uti,assets_num1,lambda1,asset_ret1,asset_vol1,
     equality_constraints<-eval(parse(text=equality_constraints))}
   asset_name1<-strsplit(asset_name1,",")[[1]]
   weights=scenario_cost_BN(uti,assets_num1,lambda1,asset_ret1,asset_var1,
-                           asset_corr1,sample_number1,extreme_stress_loss,pro_dict,
-                           principal1,trans_cost,finan_cost,haircut,real_finance_weight,w_now,lower_bound,upper_bound,k,
+                           asset_corr1,sample_number1,extreme_stress_loss_scenario1,extreme_stress_loss_scenario2,pro_dict_scenario1,pro_dict_scenario2,
+                           principal1,trans_cost,finan_cost,haircut,real_finance_weight,w_now,lower_bound,upper_bound,subjective_k1,subjective_k2,
                            inequality_constraints,equality_constraints,maxeval_global,maxeval_local,asset_name1,moment,smallprob)
   return(weights)
 }

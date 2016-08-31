@@ -157,16 +157,17 @@ shinyUI(fluidPage(
                   hr(),
                   conditionalPanel("input.show_part_or_all=='all1'",             ##conditional panel display when we select to show all
                                    titlePanel("Extreme Scenario Correlation Matrix"),
-                                   DT::dataTableOutput("bayesian_matrix_cor_extreme_scenarioall")))
-#                                   hr()),
-#                  titlePanel("Conditional probability Matrix in Extreme Scenario"),
-#                  DT::dataTableOutput("bayesian_matrix_cor_scenarioall"),
-#                  hr(),
-#                  conditionalPanel("input.show_part_or_all=='all1'",
-#                                   titlePanel("Downside correlation in Extreme Scenario"),
-#                                   DT::dataTableOutput("bayesian_matrix_cor_downside_scenarioall"),hr()),
-#                  titlePanel("Rescaled Correlation Matrix in Bayesian Network"),
-#                  DT::dataTableOutput("bayesian_matrix_cor2_scenarioall"))
+                                   DT::dataTableOutput("bayesian_matrix_cor_extreme_scenarioall"),
+                                  hr()),
+                 titlePanel("Conditional probability Matrix in Extreme Scenario"),
+                 DT::dataTableOutput("bayesian_matrix_cor_scenarioall"),
+                 hr(),
+                 conditionalPanel("input.show_part_or_all=='all1'",
+                                  titlePanel("Downside correlation in Extreme Scenario"),
+                                  DT::dataTableOutput("bayesian_matrix_cor_downside_scenarioall"),
+                                  hr()),
+                 titlePanel("Rescaled Correlation Matrix in Bayesian Network"),
+                 DT::dataTableOutput("bayesian_matrix_cor2_scenarioall"))
         ))),
   hr(),
   titlePanel("3.Set Transaction Cost & Finance cost"),
@@ -231,8 +232,7 @@ shinyUI(fluidPage(
     column(2,textInput("upper_bound", label = h3("Upper bounds for assets"), value = "1,1,1,1")),
     column(2, sliderInput("sample_number1", label = h3("number of samples"),min = 10000, max = 1000000,step=10000, value =10000)),
     helpText("Subjective Value parameter is the probability you assigned that in the next interval at least one extreme event will happen"),
-    column(2, sliderInput("subjective_k_scenario1", label = h3("Subjective Value"),min = 0.0, max =1.0,step=0.01, value =0.01)),
-    column(2, sliderInput("subjective_k_scenario2", label = h3("Subjective Value"),min = 0.0, max =1.0,step=0.01, value =0.01)),
+    column(2, sliderInput("subjective_k", label = h3("Subjective Value"),min = 0.0, max =1.0,step=0.01, value =c(0.01,0.02))),
     column(2, sliderInput("maxeval_global", label = h3("Global or Moment Match Search rounds"),min = 50, max =1000,step=50, value =200)),
     column(2, sliderInput("maxeval_local", label = h3("Final Step Search rounds"),min = 50, max =1000,step=50, value =200)),
     column(2, checkboxInput("moment", label = "Use Moment matching method to replace global search part", value = TRUE))
@@ -295,7 +295,7 @@ return(h)
   titlePanel("6.Optimize weights table"),
   sidebarLayout(
     sidebarPanel(textInput("lambdas", label = h3("lambdas you are interested in"), value = "5,10"),
-                 textInput("ks", label = h3("probabilities of at least one extreme events to happen"), value = "0.2,0.5"),
+                 textInput("ks", label = h3("probabilities of at least one extreme events to happen in two scenarios"), value = "(0.2,0.5),(0.1,0.1)"),
                  helpText("Above are the lambdas and subjective_ks you are interested in,you may input multiple lambdas and ks,comma delimited"),
                  checkboxInput("moment2", label = "Use Moment matching method to replace global search part", value = TRUE),
                  # sliderInput("smallprob2", label = h3("negelect scenarios with small probabilities"),min = 0, max = 1e-4, step=1e-6,value =1e-5),
