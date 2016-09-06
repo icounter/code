@@ -530,7 +530,9 @@ generate_bayesian_cor2_functionall<-function(pro_dict_scenario1,pro_dict_scenari
       if(order[i]!=0){
         scenario_numer=(pro_dict_matrix[pro_dict_matrix[,i]!=0,i])[1]
         rand[1:order[i],]<-t(((1-(pro_dict_matrix[,i]!=0))*t(rand[1:order[i],])))
-        if(scenario_numer==2){
+        if(is.na(scenario_numer)){
+          rand[1:order[i],]<-rand[1:order[i],]
+        }else if(scenario_numer==2){
           rand[1:order[i],]<-t(apply(rand[1:order[i],],1,function(x) x+as.vector(pro_dict_matrix[,i]*extreme_stress_loss_scenario2/(pro_dict_matrix[pro_dict_matrix[,i]!=0,i])[1])))
         }else{
           rand[1:order[i],]<-t(apply(rand[1:order[i],],1,function(x) x+as.vector(pro_dict_matrix[,i]*extreme_stress_loss_scenario1/(pro_dict_matrix[pro_dict_matrix[,i]!=0,i])[1]))) 

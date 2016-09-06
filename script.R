@@ -1156,7 +1156,7 @@ scenario_cost_BN<-function(method,assets_num,lambda,asset_ret,asset_var,asset_co
   rand2<<-generate_N_rand(N,asset_corr,margins_r,paramMargins_r,N_sample) 
   ####below is a way to reduce computation time,when the total scenario number is above 2000,we only pick out the scenarios happen with more than 0.01% probability
 # if(ncol(pro_dict)>2000){
-  pro_dict<<-combine_scenarios(pro_dict_scenario1,pro_dict_scenario2,subjective_k1,subjective_k2)
+  pro_dict<-combine_scenarios(pro_dict_scenario1,pro_dict_scenario2,subjective_k1,subjective_k2)
   pro_dict1<<-pro_dict[,which(pro_dict[1,]>smallprob)]
   rand_sub<<-generate_N_rand(N,asset_corr,margins_r,paramMargins_r,sub_sample) 
 #   }else{

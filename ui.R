@@ -288,35 +288,35 @@ return(h)
     sidebarPanel(uiOutput('variables2'),sliderInput("x_range_return2", label = h3("Show Return CDF in the range"), min = -1, max = 1, step=0.05,value = c(-0.3, 0.3)),
                  actionButton("go_plot2","start to generate plot")),
     mainPanel(plotOutput("returnplot2",height = 500))),
-  hr(),
+  hr()
   ######################################################################
   #################################PART 6 ##############################
   ######################################################################
-  titlePanel("6.Optimize weights table"),
-  sidebarLayout(
-    sidebarPanel(textInput("lambdas", label = h3("lambdas you are interested in"), value = "5,10"),
-                 textInput("ks", label = h3("probabilities of at least one extreme events to happen in two scenarios"), value = "(0.2,0.5),(0.1,0.1)"),
-                 helpText("Above are the lambdas and subjective_ks you are interested in,you may input multiple lambdas and ks,comma delimited"),
-                 checkboxInput("moment2", label = "Use Moment matching method to replace global search part", value = TRUE),
-                 # sliderInput("smallprob2", label = h3("negelect scenarios with small probabilities"),min = 0, max = 1e-4, step=1e-6,value =1e-5),
-                 checkboxGroupInput("uti2", label = h3("Utility function typies you are interested in"), 
-                                    choices = list("Exponential Utility" = 'expo', "Power Utility" = 'power', "Log Utility" = 'log',"Risk seeking combination"='combo'), selected = 'expo'),
-                 conditionalPanel(condition="input.uti2.indexOf('combo')>-1",hr(),
-                                  helpText("Below is just for COMBO function"),
-                                  numericInput("x_extreme2",label = h3("extreme loss tolerance"),step=0.01,value = -0.3),
-                                  numericInput("x_downturning2",label = h3("downside turning return"),step=0.01,value = -0.05),
-                                  # numericInput("x_mid22",label = h3("mid return between downside and upside return"),step=0.01,value = 0),
-                                  numericInput("x_upturning2",label = h3("upside turning return"),step=0.01,value = 0.05),
-                                  numericInput("prob22",label = h3("prob to get downside return"),step=0.01,value = 0.8)
-                 ),hr(),
-                 sliderInput("sample_number2", label = h3("number of samples to generate"),min = 10000, max = 1000000,step=10000, value =50000),
-                 actionButton("go9","click here to show tables"),
-                 radioButtons("filetype", "File type:",choices = c("csv", "tsv")),
-                 downloadButton('downloadData','Download'),
-                 helpText("This download function is only available when open in browser")
-    ),mainPanel(
-      titlePanel("The optimized weights of the assets are:"),
-      conditionalPanel(condition="input.uti2.indexOf('expo')>-1||input.uti2.indexOf('log')>-1||input.uti2.indexOf('power')>-1",tableOutput("hotable3")),
-      conditionalPanel(condition="input.uti2.indexOf('combo')>-1",hr(),titlePanel("Using Combination Utility function:"),tableOutput("hotable4"))
-    )
-  )))
+#   titlePanel("6.Optimize weights table"),
+#   sidebarLayout(
+#     sidebarPanel(textInput("lambdas", label = h3("lambdas you are interested in"), value = "5,10"),
+#                  textInput("ks", label = h3("probabilities of at least one extreme events to happen in two scenarios"), value = "(0.2,0.5),(0.1,0.1)"),
+#                  helpText("Above are the lambdas and subjective_ks you are interested in,you may input multiple lambdas and ks,comma delimited"),
+#                  checkboxInput("moment2", label = "Use Moment matching method to replace global search part", value = TRUE),
+#                  # sliderInput("smallprob2", label = h3("negelect scenarios with small probabilities"),min = 0, max = 1e-4, step=1e-6,value =1e-5),
+#                  checkboxGroupInput("uti2", label = h3("Utility function typies you are interested in"), 
+#                                     choices = list("Exponential Utility" = 'expo', "Power Utility" = 'power', "Log Utility" = 'log',"Risk seeking combination"='combo'), selected = 'expo'),
+#                  conditionalPanel(condition="input.uti2.indexOf('combo')>-1",hr(),
+#                                   helpText("Below is just for COMBO function"),
+#                                   numericInput("x_extreme2",label = h3("extreme loss tolerance"),step=0.01,value = -0.3),
+#                                   numericInput("x_downturning2",label = h3("downside turning return"),step=0.01,value = -0.05),
+#                                   # numericInput("x_mid22",label = h3("mid return between downside and upside return"),step=0.01,value = 0),
+#                                   numericInput("x_upturning2",label = h3("upside turning return"),step=0.01,value = 0.05),
+#                                   numericInput("prob22",label = h3("prob to get downside return"),step=0.01,value = 0.8)
+#                  ),hr(),
+#                  sliderInput("sample_number2", label = h3("number of samples to generate"),min = 10000, max = 1000000,step=10000, value =50000),
+#                  actionButton("go9","click here to show tables"),
+#                  radioButtons("filetype", "File type:",choices = c("csv", "tsv")),
+#                  downloadButton('downloadData','Download'),
+#                  helpText("This download function is only available when open in browser")
+#     ),mainPanel(
+#       titlePanel("The optimized weights of the assets are:"),
+#       conditionalPanel(condition="input.uti2.indexOf('expo')>-1||input.uti2.indexOf('log')>-1||input.uti2.indexOf('power')>-1",tableOutput("hotable3")),
+#       conditionalPanel(condition="input.uti2.indexOf('combo')>-1",hr(),titlePanel("Using Combination Utility function:"),tableOutput("hotable4"))
+#     )
+  ))
